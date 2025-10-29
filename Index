@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Ripasso Intelligente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb; /* Sfondo chiaro */
+            color: #1e293b;
+        }
+        .container {
+            max-width: 1000px;
+        }
+        .card {
+            /* Ombre più marcate */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-radius: 0.75rem; /* rounded-xl */
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 20px -5px rgba(0, 0, 0, 0.15), 0 6px 10px -4px rgba(0, 0, 0, 0.08);
+        }
+        /* Stile Pulsante Giallo (Primario) */
+        .btn-primary {
+            background-color: #facc15; /* Giallo (yellow-400) */
+            color: #000000; /* Testo Nero */
+            font-weight: 700;
+            transition: background-color 0.15s;
+        }
+        .btn-primary:hover {
+            background-color: #eab308; /* Giallo più scuro al passaggio (yellow-600) */
+        }
+        /* Stile Pulsante Secondario (Apri File) */
+        .btn-secondary {
+            background-color: #f1f5f9;
+            color: #4f46e5;
+            border: 1px solid #4f46e5;
+            transition: background-color 0.15s;
+        }
+        .btn-secondary:hover {
+            background-color: #e2e8f0;
+        }
+        /* Stile Pulsante Ripasso */
+        .btn-review {
+            background-color: #10b981; /* Smeraldo (Emerald) */
+            color: white; 
+            font-weight: 600;
+            transition: background-color 0.15s;
+        }
+        .btn-review:hover {
+            background-color: #059669;
+        }
+        .loader {
+            border-top-color: #4f46e5;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @-webkit-keyframes spinner {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .file-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="app" class="container mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-black text-indigo-700 mb-2">MyNotes SRS</h1>
+            <p class="text-gray-500">Sistema di Ripasso Spaziato (Spaced Repetition) per i tuoi file. Carica, nomina e ripassa.</p>
+        </header>
+
+        <!-- Sezione Caricamento File e Nome Promemoria (Azione Unica) -->
+        <div class="card bg-white p-6 rounded-xl mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-indigo-600">Carica File e Inizia Ripasso</h2>
+            
+            <input type="text" id="memoNameInput" placeholder="Assegna un nome al promemoria (es. Curva di Apprendimento)" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 mb-4">
+            
+            <input type="file" id="fileInput" class="mb-4 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 p-2.5">
+            
+            <button id="uploadFileButton" class="btn-primary w-full font-semibold py-2 px-4 rounded-lg hover:shadow-lg">
+                Carica File e Salva Promemoria (Primo Ripasso: Oggi)
+            </button>
+            <div id="fileUploadMessage" class="mt-3 text-sm font-medium"></div>
+            <p class="text-sm text-gray-500 mt-2">ID Utente: <span id="userIdDisplay" class="font-mono text-xs bg-gray-100 p-1 rounded">In attesa...</span></p>
+        </div>
+
+        <!-- Sezione Promemoria Giornalieri (Da Ripassare Oggi) -->
+        <div class="card bg-white p-6 rounded-xl mb-8 border-4 border-indigo-200">
+            <h2 class="text-2xl font-semibold mb-4 text-red-600 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Promemoria da Ripassare OGGI
+            </h2>
+            <ul id="dailyReviewList" class="space-y-3">
+                <!-- I promemoria da ripassare OGGI verranno inseriti qui -->
+            </ul>
+            <p id="emptyDailyMessage" class="text-center text-gray-500 py-4 hidden">Nessun promemoria da ripassare oggi. Ottimo lavoro!</p>
+        </div>
+
+        <!-- Sezione Lista Tutti i Promemoria -->
+        <div class="card bg-white p-6 rounded-xl">
+            <h2 class="text-2xl font-semibold mb-4 text-indigo-600">Tutti i Promemoria Salvati</h2>
+            <div id="loadingIndicator" class="flex justify-center py-4 hidden">
+                <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-8 w-8"></div>
+            </div>
+            <ul id="memosList" class="space-y-3">
+                <!-- Tutti i promemoria verranno inseriti qui dal JS -->
+            </ul>
+            <p id="emptyMessage" class="text-center text-gray-500 py-4 hidden">Non ci sono promemoria. Aggiungine uno per iniziare!</p>
+        </div>
+        
+    </div>
+
+    <!-- Modale per la conferma -->
+    <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalTitle">Conferma Eliminazione</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500" id="modalMessage">Sei sicuro di voler eliminare questo promemoria?</p>
+                </div>
+                <div class="items-center px-4 py-3">
+                    <button id="confirmBtn" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-24 shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 mr-2">
+                        Elimina
+                    </button>
+                    <button id="cancelBtn" class="px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md w-24 shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                        Annulla
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, addDoc, serverTimestamp, setLogLevel, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Variabili Globali
+        let app = null;
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let appId = null;
+
+        // Sequenza degli intervalli di ripasso (in giorni): 1, 3, 7, 14, 30, 90, 180, ...
+        const REVIEW_INTERVALS = [1, 3, 7, 14, 30, 90, 180, 365];
+
+        // --- Utility per le Date ---
+        function getTodayTimestamp() {
+            // Restituisce l'inizio del giorno di oggi come timestamp (per il confronto)
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            return now.getTime();
+        }
+
+        function formatDate(date) {
+            if (!date) return 'N/A';
+            const d = date instanceof Date ? date : date.toDate();
+            return d.toLocaleDateString('it-IT', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function calculateNextDate(currentInterval) {
+            const nextIntervalIndex = REVIEW_INTERVALS.indexOf(currentInterval);
+            let newInterval = currentInterval;
+
+            if (nextIntervalIndex !== -1 && nextIntervalIndex < REVIEW_INTERVALS.length - 1) {
+                newInterval = REVIEW_INTERVALS[nextIntervalIndex + 1];
+            } else if (nextIntervalIndex === REVIEW_INTERVALS.length - 1) {
+                // Se è l'ultimo intervallo, lo raddoppiamo
+                newInterval = currentInterval * 2;
+            } else if (currentInterval === 0) {
+                // Stato iniziale
+                newInterval = REVIEW_INTERVALS[0];
+            }
+            
+            const nextDate = new Date();
+            nextDate.setDate(nextDate.getDate() + newInterval);
+
+            // Ritorna la prossima data e il nuovo intervallo
+            return { nextDate: nextDate, newInterval: newInterval };
+        }
+
+        // --- Gestione Configurazione e Inizializzazione Firebase ---
+        function getFirebaseConfig() {
+            try {
+                if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    const config = JSON.parse(__firebase_config);
+                    console.warn('Configurazione Firebase utilizzata:', config);
+                    return config;
+                } else {
+                    console.error("Variabile __firebase_config non definita o vuota.");
+                    return { apiKey: "FALLBACK_API_KEY", projectId: "fallback-project" };
+                }
+            } catch (error) {
+                console.error("Errore nel parsing di __firebase_config:", error);
+                return { apiKey: "FALLBACK_API_KEY", projectId: "fallback-project" };
+            }
+        }
+
+        async function startApplicationLogic() {
+            try {
+                setLogLevel('error'); 
+
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const firebaseConfig = getFirebaseConfig();
+
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('userIdDisplay').textContent = userId;
+                        console.log(`Firebase e Autenticazione completate. UserID: ${userId}`);
+                        
+                        setupEventListeners();
+                        setupMemosListener();
+
+                    } else {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await setPersistence(auth, browserSessionPersistence);
+                            await signInAnonymously(auth);
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Errore nell'inizializzazione di Firebase o nell'autenticazione:", error);
+                document.getElementById('userIdDisplay').textContent = 'ERRORE: Vedi console';
+            }
+        }
+
+        // --- Funzioni Helper Firebase ---
+
+        function getCollectionPath(collectionName) {
+            // Path per dati privati (userId è l'identificatore)
+            return `/artifacts/${appId}/users/${userId}/${collectionName}`;
+        }
+        
+        // Path specifico per i metadati/dati dei file
+        function getFilePath(fileName) {
+            return `/artifacts/${appId}/users/${userId}/files/${fileName}`;
+        }
+
+        // --- Logica Promemoria (CRUD) - Funzione Unificata ---
+
+        async function uploadFileAndCreateMemo() {
+            const fileInput = document.getElementById('fileInput');
+            const memoNameInput = document.getElementById('memoNameInput'); 
+            const messageDiv = document.getElementById('fileUploadMessage');
+            
+            const file = fileInput.files[0];
+            const memoName = memoNameInput.value.trim();
+
+            if (!file) {
+                messageDiv.textContent = "Seleziona un file da caricare.";
+                messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+                return;
+            }
+            
+            if (!memoName) {
+                messageDiv.textContent = "Assegna un nome al promemoria prima di caricare.";
+                messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+                return;
+            }
+            
+            if (file.size > 1024 * 1024) { // 1MB
+                messageDiv.textContent = "Il file è troppo grande (Max 1MB).";
+                messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+                return;
+            }
+            if (!userId) {
+                messageDiv.textContent = "Errore di autenticazione. Riprova.";
+                messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+                return;
+            }
+
+            // Disabilita pulsante e mostra caricamento
+            document.getElementById('uploadFileButton').disabled = true;
+            messageDiv.innerHTML = `<span class="flex items-center"><div class="loader ease-linear rounded-full border-4 border-t-4 border-indigo-400 h-5 w-5 mr-3"></div> Caricamento in corso...</span>`;
+            messageDiv.className = 'mt-3 text-sm font-medium text-indigo-700';
+            
+            // Leggere il file come Base64
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Data = e.target.result.split(',')[1];
+                
+                // Creare un documento file unico
+                const fileUniqueId = `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+                const fileDocRef = doc(db, getFilePath(fileUniqueId));
+
+                const fileMetadata = {
+                    name: file.name,
+                    mimeType: file.type,
+                    size: file.size,
+                    timestamp: serverTimestamp(),
+                    data: base64Data 
+                };
+
+                // Calcolo prima data di ripasso (intervallo iniziale 1 giorno)
+                const initialReviewData = calculateNextDate(0); 
+                
+                try {
+                    // 1. Salva il file nel suo percorso (Base64)
+                    await setDoc(fileDocRef, fileMetadata);
+
+                    // 2. Crea un promemoria con i dati SRS
+                    const memo = {
+                        text: memoName, 
+                        timestamp: serverTimestamp(),
+                        file: {
+                            id: fileDocRef.id,
+                            originalName: file.name,
+                            mimeType: file.type,
+                            sizeKB: (file.size / 1024).toFixed(1)
+                        },
+                        // Dati per il Ripasso Spaziato
+                        lastReviewDate: null,
+                        nextReviewDate: initialReviewData.nextDate, 
+                        reviewIntervalDays: initialReviewData.newInterval // 1 giorno
+                    };
+                    const collectionRef = collection(db, getCollectionPath('memos'));
+                    await addDoc(collectionRef, memo);
+
+                    messageDiv.textContent = "File caricato e promemoria SRS creato! Prossimo ripasso: " + formatDate(initialReviewData.nextDate);
+                    messageDiv.className = 'mt-3 text-sm font-bold text-green-700';
+                    fileInput.value = ''; 
+                    memoNameInput.value = ''; 
+
+                } catch (e) {
+                    console.error("Errore durante il salvataggio del file/promemoria: ", e);
+                    messageDiv.textContent = "Errore nel salvataggio. Il file potrebbe essere troppo grande o esserci problemi di rete.";
+                    messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+                } finally {
+                    document.getElementById('uploadFileButton').disabled = false;
+                }
+            };
+            reader.onerror = () => {
+                messageDiv.textContent = "Errore nella lettura del file.";
+                messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+                document.getElementById('uploadFileButton').disabled = false;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function markAsReviewed(memoId, currentInterval) {
+             const messageDiv = document.getElementById('fileUploadMessage');
+             messageDiv.textContent = "Aggiornamento intervallo di ripasso...";
+             messageDiv.className = 'mt-3 text-sm font-medium text-indigo-500';
+
+            const { nextDate, newInterval } = calculateNextDate(currentInterval);
+
+            try {
+                const memoRef = doc(db, getCollectionPath('memos'), memoId);
+                await updateDoc(memoRef, {
+                    lastReviewDate: new Date(),
+                    nextReviewDate: nextDate,
+                    reviewIntervalDays: newInterval
+                });
+                
+                messageDiv.textContent = `Ripasso salvato! Prossimo ripasso tra ${newInterval} giorni (${formatDate(nextDate)}).`;
+                messageDiv.className = 'mt-3 text-sm font-bold text-green-700';
+
+            } catch (e) {
+                console.error("Errore nell'aggiornamento del ripasso: ", e);
+                messageDiv.textContent = `Errore: Impossibile salvare il ripasso. ${e.message}`;
+                messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+            }
+        }
+
+        function deleteMemo(id) {
+            showModal("Conferma Eliminazione", "Sei sicuro di voler eliminare questo promemoria?", async () => {
+                try {
+                    const memoRef = doc(db, getCollectionPath('memos'), id);
+                    await deleteDoc(memoRef);
+                    console.log("Promemoria eliminato con successo.");
+                } catch (e) {
+                    console.error("Errore nell'eliminare il promemoria: ", e);
+                }
+            });
+        }
+
+        // --- Ascolto Dati in Tempo Reale (onSnapshot) ---
+
+        function setupMemosListener() {
+            const loading = document.getElementById('loadingIndicator');
+            loading.classList.remove('hidden');
+
+            const q = query(collection(db, getCollectionPath('memos')));
+
+            onSnapshot(q, (snapshot) => {
+                loading.classList.add('hidden');
+                const allMemos = [];
+                snapshot.forEach((doc) => {
+                    allMemos.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Ordina per data di ripasso (dal più urgente al meno urgente)
+                allMemos.sort((a, b) => (a.nextReviewDate?.toDate().getTime() || Infinity) - (b.nextReviewDate?.toDate().getTime() || Infinity));
+
+                renderMemos(allMemos);
+
+            }, (error) => {
+                loading.classList.add('hidden');
+                console.error("Errore nell'ascolto dei promemoria:", error);
+            });
+        }
+
+        // --- Render UI ---
+
+        function renderMemos(memos) {
+            const listElement = document.getElementById('memosList');
+            const dailyListElement = document.getElementById('dailyReviewList');
+            const emptyAll = document.getElementById('emptyMessage');
+            const emptyDaily = document.getElementById('emptyDailyMessage');
+
+            listElement.innerHTML = ''; 
+            dailyListElement.innerHTML = '';
+            
+            const today = getTodayTimestamp();
+            const dailyMemos = [];
+
+            memos.forEach(memo => {
+                const nextReviewTimestamp = memo.nextReviewDate?.toDate().getTime() || 0;
+                
+                // 1. Check per Promemoria Giornalieri
+                if (nextReviewTimestamp <= today) {
+                    dailyMemos.push(memo);
+                }
+
+                // 2. Render di TUTTI i promemoria
+                const li = createMemoListItem(memo, nextReviewTimestamp <= today);
+                listElement.appendChild(li);
+            });
+            
+            // 3. Render dei Promemoria Giornalieri
+            dailyMemos.forEach(memo => {
+                const li = createMemoListItem(memo, true); 
+                dailyListElement.appendChild(li);
+            });
+
+
+            emptyAll.classList.toggle('hidden', memos.length > 0);
+            emptyDaily.classList.toggle('hidden', dailyMemos.length > 0);
+        }
+        
+        function createMemoListItem(memo, isDue) {
+            const li = document.createElement('li');
+            li.className = `flex flex-col md:flex-row items-start md:items-center justify-between p-4 border rounded-lg transition duration-150 ${isDue ? 'bg-red-50 border-red-300 hover:bg-red-100' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`;
+
+            const content = document.createElement('div');
+            content.className = 'flex-1 min-w-0 mb-3 md:mb-0';
+
+            const memoText = document.createElement('p');
+            memoText.className = 'text-gray-800 font-bold break-words';
+            memoText.textContent = memo.text;
+            content.appendChild(memoText);
+
+            const reviewStatus = document.createElement('p');
+            reviewStatus.className = `text-xs mt-1 font-medium ${isDue ? 'text-red-600' : 'text-indigo-600'}`;
+            
+            const nextReviewDate = memo.nextReviewDate ? formatDate(memo.nextReviewDate) : 'N/A';
+            const interval = memo.reviewIntervalDays || 0;
+
+            if (isDue) {
+                 reviewStatus.innerHTML = `⚠️ <span class="font-extrabold">RIPASSA OGGI!</span> | Intervallo attuale: ${interval} gg`;
+            } else {
+                 reviewStatus.innerHTML = `Prossimo Ripasso: <span class="font-bold">${nextReviewDate}</span> (in ${interval} gg)`;
+            }
+
+            content.appendChild(reviewStatus);
+
+            if (memo.file && memo.file.id) {
+                const fileInfo = document.createElement('p');
+                fileInfo.className = 'text-xs text-gray-500 mt-1';
+                fileInfo.textContent = `File: ${memo.file.originalName} (${memo.file.sizeKB} KB)`;
+                content.appendChild(fileInfo);
+            }
+
+
+            const actions = document.createElement('div');
+            actions.className = 'flex flex-row space-x-2 md:ml-4 flex-shrink-0';
+            
+            if (memo.file && memo.file.id) {
+                const fileLink = document.createElement('button');
+                fileLink.className = 'btn-secondary text-xs px-3 py-2 font-semibold rounded-lg inline-flex items-center';
+                fileLink.onclick = () => openFile(memo.file.id);
+                fileLink.innerHTML = `<svg class="file-icon text-indigo-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>Apri`;
+                actions.appendChild(fileLink);
+            }
+            
+            // Pulsante "Ho Ripassato"
+            const reviewButton = document.createElement('button');
+            reviewButton.className = 'btn-review text-xs px-3 py-2 font-semibold rounded-lg shadow-md';
+            reviewButton.textContent = 'Ho Ripassato!';
+            reviewButton.onclick = () => markAsReviewed(memo.id, memo.reviewIntervalDays);
+            actions.appendChild(reviewButton);
+
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'text-red-500 hover:text-red-700 p-2 rounded-full transition duration-150';
+            deleteButton.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>`;
+            deleteButton.onclick = () => deleteMemo(memo.id);
+            actions.appendChild(deleteButton);
+
+
+            li.appendChild(content);
+            li.appendChild(actions);
+            return li;
+        }
+
+        // --- Logica Apertura File ---
+
+        async function openFile(fileDocId) {
+            const messageDiv = document.getElementById('fileUploadMessage');
+            messageDiv.textContent = "Recupero file in corso...";
+            messageDiv.className = 'mt-3 text-sm font-medium text-indigo-500';
+
+            try {
+                const fileRef = doc(db, getFilePath(fileDocId));
+                const fileSnapshot = await getDoc(fileRef);
+
+                if (fileSnapshot.exists()) {
+                    const fileData = fileSnapshot.data();
+                    const base64Data = fileData.data;
+                    const mimeType = fileData.mimeType;
+                    const fileName = fileData.name;
+
+                    if (!base64Data || !mimeType) {
+                        messageDiv.textContent = "Errore: Dati file mancanti.";
+                        messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+                        return;
+                    }
+
+                    const url = `data:${mimeType};base64,${base64Data}`;
+                    
+                    const newTab = window.open(url, '_blank');
+                    if (newTab) {
+                        newTab.document.title = fileName;
+                    } else {
+                        messageDiv.textContent = "Impossibile aprire il file. Controlla il blocco pop-up.";
+                        messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+                        return;
+                    }
+
+                    messageDiv.textContent = `File "${fileName}" aperto con successo.`;
+                    messageDiv.className = 'mt-3 text-sm font-bold text-green-700';
+                    
+                } else {
+                    messageDiv.textContent = "Errore: File non trovato nel database.";
+                    messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+                }
+            } catch (e) {
+                console.error("Errore nel recupero del file:", e);
+                messageDiv.textContent = `Errore nel recupero del file: ${e.message}`;
+                messageDiv.className = 'mt-3 text-sm font-bold text-red-600';
+            }
+        }
+
+
+        // --- Logica Modale ---
+
+        let modalCallback = null;
+        const modal = document.getElementById('modal');
+        const confirmBtn = document.getElementById('confirmBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+
+        function showModal(title, message, callback) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalCallback = callback;
+            modal.classList.remove('hidden');
+        }
+
+        function hideModal() {
+            modal.classList.add('hidden');
+            modalCallback = null;
+        }
+
+        confirmBtn.onclick = () => {
+            if (modalCallback) {
+                modalCallback();
+            }
+            hideModal();
+        };
+
+        cancelBtn.onclick = hideModal;
+
+        modal.onclick = (event) => {
+            if (event.target === modal) {
+                hideModal();
+            }
+        };
+
+        // --- Setup Event Listeners ---
+
+        function setupEventListeners() {
+            document.getElementById('uploadFileButton').addEventListener('click', uploadFileAndCreateMemo);
+        }
+
+        // --- Avvio App ---
+
+        document.addEventListener('DOMContentLoaded', startApplicationLogic);
+    </script>
+</body>
+</html>
